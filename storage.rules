@@ -1,0 +1,29 @@
+rules_version = '2';
+
+// Replace Deeds — Firebase Storage Security Rules
+// Covers the chat image/video attachment feature (uploadChatMedia in index.html),
+// which stores files under chat_media/{uid}/{fileName}.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    match /chat_media/{uid}/{fileName} {
+      // Only the signed-in owner of a folder can upload into it, capped at 15MB,
+      // and only actual image/video files (matches the app's own attach button).
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size < 15 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*|video/.*');
+
+      // Any signed-in user can read — needed so the OTHER person in a chat can view
+      // a photo/video someone sent them. (This app is a small, trusted family circle,
+      // not a public app, so this is a reasonable, standard tradeoff.)
+      allow read: if request.auth != null;
+    }
+
+    // Deny everything else by default.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
